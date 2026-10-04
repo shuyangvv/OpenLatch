@@ -27,6 +27,7 @@ dependencies = [
 [project.optional-dependencies]
 cli = ["typer>=0.12"]
 dev = ["pytest>=8", "typer>=0.12"]
+langgraph = ["langgraph"]
 
 [project.scripts]
 openlatch = "openlatch.cli:main"

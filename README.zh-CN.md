@@ -10,7 +10,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-45%20passed-2ea44f)](tests/)
+[![Tests](https://img.shields.io/badge/tests-50%20passed-2ea44f)](tests/)
 
 </div>
 
@@ -31,7 +31,7 @@ OpenLatch 不是 Jev 客户端，也不会发起网络连接。调用方用官�
 python -m pip install openlatch
 ```
 
-需要 Python 3.10 或更高版本。运行时只依赖 `pydantic>=2` 和 `PyYAML`。可选 extra：`openlatch[cli]`（`openlatch` 命令）、`openlatch[dev]`（pytest 与 CLI）。本库不依赖 `httpx`、`typesafe-sdk`、`openai`、`langchain` 或 `fastapi`。持续集成不需要 API key。
+需要 Python 3.10 或更高版本。运行时只依赖 `pydantic>=2` 和 `PyYAML`。可选 extra：`openlatch[cli]`（`openlatch` 命令）、`openlatch[dev]`（pytest 与 CLI）、`openlatch[langgraph]`（`examples/langgraph_router.py` 示例）。本库不依赖 `httpx`、`typesafe-sdk`、`openai`、`langchain` 或 `fastapi`。持续集成不需要 API key。
 
 若使用 [uv](https://docs.astral.sh/uv/)，在 uv 项目中执行 `uv add openlatch`，或在虚拟环境中执行 `uv pip install openlatch`。源码安装与各平台命令见 [安装细节](#安装细节)。
 
@@ -84,12 +84,27 @@ else:
     review_queue.push(decision)
 ```
 
-召回过滤、不确定分支路由、译文充分性门闩应共用这一次 `decide`。这些服务里不应再手写 `if confidence > 0.8`。
+召回过滤、不确定分支路由、译文充分性门闩应共用这一次 `decide`。这些服务里不应再手写 `if confidence > 0.8`。`openlatch.graph` 把这次调用收成节点：调用方把 `answers` 放进图状态，`make_latch_node` 写出 `decision` 和 `route`，`route_latch` 再按 `accept` / `escalate` 分支。节点不调用模型，也不发起网络连接。
+
+```python
+from openlatch.graph import make_latch_node, route_latch
+from langgraph.graph import END, START, StateGraph
+
+graph = StateGraph(dict)
+graph.add_node("latch", make_latch_node(pack, policy))
+graph.add_edge(START, "latch")
+graph.add_conditional_edges(
+    "latch",
+    route_latch,
+    {"accept": "use_passage", "escalate": "review"},
+)
+```
 
 在仓库克隆中运行已录制的 fixture：
 
 ```bash
 python examples/rag_filter.py
+python examples/langgraph_router.py  # 需要 openlatch[langgraph]
 ```
 
 ## 对象
@@ -236,13 +251,13 @@ python examples/fit_from_log.py
 
 ## 范围
 
-v1 包含库、JSONL 存储和 CLI。
+v1 包含库、JSONL 存储、CLI，以及可选的 LangGraph 节点契约（`openlatch.graph`，不属于核心导出列表）。节点仍然调用 `decide`，不会再写一套阈值逻辑。
 
 明确不做：
 
 - HTTP、重试或限流（属于官方 SDK）
 - 内置强裁判、解释生成或调用 GPT
-- MCP 服务、LangGraph 节点、FastAPI 中间件或仪表盘
+- MCP 服务、FastAPI 中间件或仪表盘
 - Postgres、多租户或第二套存储引擎
 - 默认阈值，或静默放行 `jev-latest`
 - 代码评审或客服路由的预设置量规（那是量规包，不是本库）

@@ -10,7 +10,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
-[![Tests](https://img.shields.io/badge/tests-45%20passed-2ea44f)](tests/)
+[![Tests](https://img.shields.io/badge/tests-50%20passed-2ea44f)](tests/)
 
 </div>
 
@@ -31,7 +31,7 @@ official SDK ── answers ──► openlatch.decide ──► accept   ──
 python -m pip install openlatch
 ```
 
-Python 3.10 or newer. The runtime depends only on `pydantic>=2` and `PyYAML`. Optional extras: `openlatch[cli]` (the `openlatch` command), `openlatch[dev]` (pytest and the CLI). The library does not depend on `httpx`, `typesafe-sdk`, `openai`, `langchain`, or `fastapi`. Continuous integration does not need an API key.
+Python 3.10 or newer. The runtime depends only on `pydantic>=2` and `PyYAML`. Optional extras: `openlatch[cli]` (the `openlatch` command), `openlatch[dev]` (pytest and the CLI), `openlatch[langgraph]` (the `examples/langgraph_router.py` demo). The library does not depend on `httpx`, `typesafe-sdk`, `openai`, `langchain`, or `fastapi`. Continuous integration does not need an API key.
 
 With [uv](https://docs.astral.sh/uv/), run `uv add openlatch` in a uv project or `uv pip install openlatch` in a virtual environment. A source checkout and platform-specific commands are in [Installation details](#installation-details).
 
@@ -84,12 +84,27 @@ else:
     review_queue.push(decision)
 ```
 
-The same `decide` call is what recall filters, uncertain-branch routers, and translation-adequacy gates should share. Hand-written `if confidence > 0.8` checks do not belong in those services.
+The same `decide` call is what recall filters, uncertain-branch routers, and translation-adequacy gates should share. Hand-written `if confidence > 0.8` checks do not belong in those services. `openlatch.graph` exposes that call as a node: the caller puts `answers` on graph state, `make_latch_node` writes `decision` and `route`, and `route_latch` branches `accept` vs `escalate`. The node does not call a model and does not open a network connection.
+
+```python
+from openlatch.graph import make_latch_node, route_latch
+from langgraph.graph import END, START, StateGraph
+
+graph = StateGraph(dict)
+graph.add_node("latch", make_latch_node(pack, policy))
+graph.add_edge(START, "latch")
+graph.add_conditional_edges(
+    "latch",
+    route_latch,
+    {"accept": "use_passage", "escalate": "review"},
+)
+```
 
 Run the recorded fixture from a clone:
 
 ```bash
 python examples/rag_filter.py
+python examples/langgraph_router.py  # needs openlatch[langgraph]
 ```
 
 ## Objects
@@ -236,13 +251,13 @@ Stable figures (`fitted_at` is the only field that changes):
 
 ## Scope
 
-v1 is a library, a JSONL store, and a CLI.
+v1 is a library, a JSONL store, a CLI, and an optional LangGraph node contract (`openlatch.graph`, not in the core export list). The node still calls `decide`; it is not a second copy of the threshold logic.
 
 Out of scope:
 
 - HTTP, retries, or rate limits (those belong to the official SDK)
 - A built-in strong referee, explanation generator, or call to GPT
-- MCP servers, LangGraph nodes, FastAPI middleware, or dashboards
+- MCP servers, FastAPI middleware, or dashboards
 - Postgres, multi-tenancy, or a second storage engine
 - A default threshold, or silent acceptance of `jev-latest`
 - Preset packs for code review or support routing (those are rubrics, not this library)
