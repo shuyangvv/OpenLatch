@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openlatch"
+version = "0.1.0"
+description = "Fail-closed decision layer for System One: accept or escalate from typed probabilities."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "OpenLatch contributors" }]
+keywords = ["decision", "threshold", "replay", "system-one", "jev"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = [
+    "pydantic>=2",
+    "PyYAML",
+]
+
+[project.optional-dependencies]
+cli = ["typer>=0.12"]
+dev = ["pytest>=8", "typer>=0.12"]
+
+[project.scripts]
+openlatch = "openlatch.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/openlatch/openlatch"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+openlatch = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,12 @@
+# RAG sufficiency gate. Comments must not enter pack_hash.
+id: rag-sufficiency
+version: 1
+model: typesafe/jev-1.13          # pinned; latest is rejected unless unlocked
+bundle: all_must_accept
+questions:
+  sufficient:
+    type: noul
+    instructions: "Does the passage directly answer the query?"
+    criteria:
+      true: "The passage contains a direct answer."
+      false: "The passage is related but does not answer."
